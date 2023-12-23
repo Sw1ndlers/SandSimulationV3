@@ -1,0 +1,4 @@
+{
+    "git.enabled": true,
+    "rust-analyzer.showUnlinkedFileNotification": false
+}
