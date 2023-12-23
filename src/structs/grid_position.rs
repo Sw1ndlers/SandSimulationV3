@@ -1,6 +1,7 @@
 use std::{
+    collections::HashMap,
     hash::{Hash, Hasher},
-    ops::{Add, AddAssign, Mul}, collections::HashMap,
+    ops::{Add, AddAssign, Mul},
 };
 
 use euclid::num::Round;
@@ -33,7 +34,10 @@ impl GridPosition {
         Self { cell_size, x, y }
     }
 
-    pub fn from_vec2<T>(point: T, cell_size: CellSize) -> Self where T: Into<Vec2> {
+    pub fn from_vec2<T>(point: T, cell_size: CellSize) -> Self
+    where
+        T: Into<Vec2>,
+    {
         let point: Vec2 = point.into();
 
         let x = (point.x / cell_size.width as f32).round() as i32;
@@ -55,7 +59,10 @@ impl GridPosition {
         )
     }
 
-    pub fn is_occupied(&self, blocks: &HashMap<GridPosition, Box<dyn Block>>) -> bool {
+    pub fn is_occupied(
+        &self,
+        blocks: &HashMap<GridPosition, Box<dyn Block>>,
+    ) -> bool {
         blocks.contains_key(self)
     }
 
@@ -83,7 +90,6 @@ impl PartialEq for GridPosition {
             && self.y == other.y
     }
 }
-
 
 impl AddAssign for GridPosition {
     fn add_assign(&mut self, other: Self) {
@@ -115,7 +121,6 @@ impl Mul for GridPosition {
         }
     }
 }
-
 
 impl Eq for GridPosition {}
 
