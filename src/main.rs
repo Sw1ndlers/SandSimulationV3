@@ -6,9 +6,7 @@ use blocks::sand::Sand;
 use ggez::conf::WindowMode;
 use ggez::event::{self, EventHandler, MouseButton};
 use ggez::glam::*;
-use ggez::graphics::{
-    self, Canvas, Color, DrawParam, Drawable, Mesh, PxScale, Rect, Text,
-};
+use ggez::graphics::{self, Canvas, Color, DrawParam, Drawable, Mesh, PxScale, Rect, Text};
 use ggez::{Context, ContextBuilder, GameResult};
 
 mod components {
@@ -32,11 +30,11 @@ const CELL_SIZE: CellSize = CellSize {
     height: 15.0,
 };
 
-const FPS: u32 = 60;
+const FPS: u32 = 5;
 
 struct MainState {
     blocks: Vec<Box<dyn Block>>,
-    occupied_positions: HashSet<GridPosition>,
+    occupied_positions: HashMap<GridPosition, Box<dyn Block>>,
     cell_size: CellSize,
     grid_color: Color,
 }
@@ -44,13 +42,15 @@ struct MainState {
 impl MainState {
     pub fn new(_ctx: &mut Context) -> MainState {
         let mut blocks: Vec<Box<dyn Block>> = Vec::new();
+        let mut occupied_positions: HashMap<GridPosition, Box<dyn Block>> = HashMap::new();
+
         let cell_size = CELL_SIZE;
 
-        let sand = Sand::new(GridPosition::new(1, 1, cell_size));
-        blocks.push(Box::new(sand));
+        // let sand = Sand::new(GridPosition::new(1, 1, cell_size));
+        // blocks.push(Box::new(sand));
 
-        let occupied_positions =
-            blocks.iter().map(|block| block.get_position()).collect();
+        // let occupied_positions =
+        //     blocks.iter().map(|block| block.get_position()).collect();
 
         MainState {
             blocks,
@@ -65,12 +65,12 @@ impl MainState {
         self.occupied_positions = self
             .blocks
             .iter()
-            .map(|block| block.get_position())
-            .collect()
+            .map(|block| (block.get_position(), block.box_clone()))
+            .collect();
     }
 
     fn position_occupied(&self, position: GridPosition) -> bool {
-        self.occupied_positions.contains(&position)
+        self.occupied_positions.contains_key(&position)
     }
 
     fn insert_block(&mut self, block: Box<dyn Block>) {
@@ -127,13 +127,8 @@ impl MainState {
         fps_text.set_bounds(bounds);
         fps_text.set_scale(PxScale::from(18.0));
 
-        let fps_background = Mesh::new_rectangle(
-            ctx,
-            graphics::DrawMode::fill(),
-            rect,
-            Color::BLACK,
-        )
-        .unwrap();
+        let fps_background =
+            Mesh::new_rectangle(ctx, graphics::DrawMode::fill(), rect, Color::BLACK).unwrap();
 
         fps_background.draw(canvas, DrawParam::default());
         fps_text.draw(canvas, DrawParam::default());
@@ -155,16 +150,9 @@ impl MainState {
 
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-
         while ctx.time.check_update_time(FPS) {
-            self.update_occupied_positions();
-
             for block in self.blocks.iter_mut() {
-                block.apply_gravity(
-                    ctx,
-                    &self.occupied_positions,
-                    self.cell_size,
-                );
+                block.apply_gravity(ctx, &self.occupied_positions, self.cell_size);
                 block.apply_motion(
                     ctx,
                     &self.occupied_positions,
@@ -172,6 +160,8 @@ impl EventHandler for MainState {
                     self.cell_size,
                 );
             }
+
+            self.update_occupied_positions();
         }
 
         Ok(())
@@ -179,6 +169,23 @@ impl EventHandler for MainState {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
+
+        let mut position_count: HashMap<GridPosition, u64> = HashMap::new();
+
+        for block in self.blocks.iter_mut() {
+            let position = block.get_position();
+            let count = position_count.get(&position).unwrap_or(&0) + 1;
+
+            // block.get_surrounding_blocks(self.blocks, cell_size);
+
+            position_count.insert(position, count);
+        }
+
+        for (position, count) in position_count {
+            if count > 1 {
+                println!("Position: {:?} Count: {}", position, count);
+            }
+        }
 
         self.draw_grid(ctx, &mut canvas);
         self.draw_fps(ctx, &mut canvas);
@@ -211,9 +218,7 @@ impl EventHandler for MainState {
 
 fn main() {
     let (mut ctx, event_loop) = ContextBuilder::new("Sand Simulation v3", "")
-        .window_setup(
-            ggez::conf::WindowSetup::default().title("Sand Simulation v3"),
-        )
+        .window_setup(ggez::conf::WindowSetup::default().title("Sand Simulation v3"))
         .build()
         .expect("Could not create ggez context");
 

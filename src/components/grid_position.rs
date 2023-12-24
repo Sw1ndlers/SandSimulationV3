@@ -61,9 +61,9 @@ impl GridPosition {
 
     pub fn is_occupied(
         &self,
-        blocks: &HashSet<GridPosition>,
+        blocks: &HashMap<GridPosition, Box<dyn Block>>,
     ) -> bool {
-        blocks.contains(self)
+        blocks.contains_key(self)
     }
 
     pub fn is_offscreen(&self, ctx: &mut ggez::Context) -> bool {

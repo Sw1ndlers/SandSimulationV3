@@ -5,7 +5,7 @@ use super::{cell_size::CellSize, grid_position::GridPosition};
 /// [Left]       | [Middle] | [Right]
 ///
 /// [BottomLeft] | [Bottom] | [BottomRight]
-#[derive(PartialEq)]
+#[derive(Eq, Hash, PartialEq)]
 pub enum Direction {
     TopLeft,
     Top,

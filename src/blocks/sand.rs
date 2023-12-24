@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use ggez::graphics::Color;
 
@@ -10,6 +10,7 @@ use crate::components::{
     pixel::Pixel,
 };
 
+#[derive(Debug, Clone)]
 pub struct Sand {
     pixel: Pixel,
     falling: bool,
@@ -21,8 +22,12 @@ impl Block for Sand {
 
         Self {
             pixel: Pixel::new(position, color),
-            falling: false,
+            falling: true,
         }
+    }
+
+    fn box_clone(&self) -> Box<dyn Block> {
+        Box::new(self.clone())
     }
 
     fn get_pixel(&self) -> &Pixel {
@@ -37,10 +42,14 @@ impl Block for Sand {
         self.pixel.position
     }
 
+    fn is_falling(&self) -> bool {
+        self.falling
+    }
+
     fn apply_gravity(
             &mut self,
             ctx: &mut ggez::Context,
-            blocks: &HashSet<GridPosition>,
+            blocks: &HashMap<GridPosition, Box<dyn Block>>,
             cell_size: CellSize,
         ) {
         let next_position = self.should_apply_gravity(ctx, blocks, cell_size);
@@ -66,8 +75,8 @@ impl Block for Sand {
     fn apply_motion(
         &mut self,
         ctx: &mut ggez::Context,
-        blocks: &HashSet<GridPosition>,
-        occupied_positions: &HashSet<GridPosition>,
+        blocks: &HashMap<GridPosition, Box<dyn Block>>,
+        occupied_positions: &HashMap<GridPosition, Box<dyn Block>>,
         cell_size: CellSize,
     ) {
         if self.falling {
@@ -75,18 +84,18 @@ impl Block for Sand {
         }
 
         let open_directions = self.get_open_directions(blocks, cell_size);
-        let contains_bottom = open_directions.contains(&Direction::Bottom);
+        let bottom_empty = open_directions.contains(&Direction::Bottom);
 
-        if open_directions.is_empty() || contains_bottom {
+        if open_directions.is_empty() || bottom_empty {
             return;
         }
 
-        let contains_left = open_directions.contains(&Direction::BottomLeft);
-        let contains_right = open_directions.contains(&Direction::BottomRight);
+        let left_empty = open_directions.contains(&Direction::BottomLeft);
+        let right_empty = open_directions.contains(&Direction::BottomRight);
 
         let next_position: GridPosition;
 
-        if contains_left && contains_right {
+        if left_empty && right_empty {
             let random = rand::random::<bool>();
 
             if random {
@@ -94,9 +103,9 @@ impl Block for Sand {
             } else {
                 next_position = self.offset_bottom_right(cell_size)
             }
-        } else if contains_left {
+        } else if left_empty {
             next_position = self.offset_bottom_left(cell_size)
-        } else if contains_right {
+        } else if right_empty {
             next_position = self.offset_bottom_right(cell_size)
         } else {
             // No open directions
