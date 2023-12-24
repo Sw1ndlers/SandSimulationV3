@@ -3,8 +3,9 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use crate::structs::{
+use crate::components::{
     cell_size::{self, CellSize},
+    directions::Direction,
     grid_position::GridPosition,
     pixel::Pixel,
 };
@@ -27,7 +28,14 @@ pub trait Block {
         ctx: &mut ggez::Context,
         blocks: &HashSet<GridPosition>,
         cell_size: CellSize,
-    ) {
+    );
+
+    fn should_apply_gravity(
+        &self,
+        ctx: &mut ggez::Context,
+        blocks: &HashSet<GridPosition>,
+        cell_size: CellSize,
+    ) -> Option<GridPosition> {
         let position = self.get_position();
         let next_position = position + GridPosition::new(0, 1, cell_size);
 
@@ -35,9 +43,55 @@ pub trait Block {
         let is_offscreen = next_position.is_offscreen(ctx);
 
         if is_occupied || is_offscreen {
-            return;
+            return None;
         }
 
-        self.set_position(next_position);
+        // self.set_position(next_position);
+        Some(next_position)
+    }
+
+    fn apply_motion(
+        &mut self,
+        ctx: &mut ggez::Context,
+        blocks: &HashSet<GridPosition>,
+        occupied_positions: &HashSet<GridPosition>,
+        cell_size: CellSize,
+    );
+
+    fn get_open_directions(
+        &self,
+        blocks: &HashSet<GridPosition>,
+        cell_size: CellSize,
+    ) -> Vec<Direction> {
+        let position = self.get_position();
+        let mut open_directions = Vec::new();
+
+        let bottom_left =
+            position + Direction::BottomLeft.get_offset(cell_size);
+        let bottom_right =
+            position + Direction::BottomRight.get_offset(cell_size);
+        let bottom = position + Direction::Bottom.get_offset(cell_size);
+
+        if !blocks.contains(&bottom_left) {
+            open_directions.push(Direction::BottomLeft);
+        }
+
+        if !blocks.contains(&bottom_right) {
+            open_directions.push(Direction::BottomRight);
+        }
+
+        if !blocks.contains(&bottom) {
+            open_directions.push(Direction::Bottom);
+        }
+
+        open_directions
+    }
+
+    fn offset_bottom_left(&mut self, cell_size: CellSize) -> GridPosition {
+        self.get_position() + Direction::BottomLeft.get_offset(cell_size)
+    }
+
+    fn offset_bottom_right(&mut self, cell_size: CellSize) -> GridPosition {
+        self.get_position() + Direction::BottomRight.get_offset(cell_size)
     }
 }

@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     hash::{Hash, Hasher},
     ops::{Add, AddAssign, Mul},
 };
@@ -61,9 +61,9 @@ impl GridPosition {
 
     pub fn is_occupied(
         &self,
-        blocks: &HashMap<GridPosition, Box<dyn Block>>,
+        blocks: &HashSet<GridPosition>,
     ) -> bool {
-        blocks.contains_key(self)
+        blocks.contains(self)
     }
 
     pub fn is_offscreen(&self, ctx: &mut ggez::Context) -> bool {

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 euclid = "0.22.9"
 ggez = "0.9.3"
+rand = "0.8.5"

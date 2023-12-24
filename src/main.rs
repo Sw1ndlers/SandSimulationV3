@@ -11,8 +11,9 @@ use ggez::graphics::{
 };
 use ggez::{Context, ContextBuilder, GameResult};
 
-mod structs {
+mod components {
     pub mod cell_size;
+    pub mod directions;
     pub mod grid_position;
     pub mod pixel;
 }
@@ -23,8 +24,15 @@ mod blocks {
 
 use blocks::block::Block;
 
-use structs::cell_size::CellSize;
-use structs::grid_position::GridPosition;
+use components::cell_size::CellSize;
+use components::grid_position::GridPosition;
+
+const CELL_SIZE: CellSize = CellSize {
+    width: 15.0,
+    height: 15.0,
+};
+
+const FPS: u32 = 60;
 
 struct MainState {
     blocks: Vec<Box<dyn Block>>,
@@ -36,12 +44,10 @@ struct MainState {
 impl MainState {
     pub fn new(_ctx: &mut Context) -> MainState {
         let mut blocks: Vec<Box<dyn Block>> = Vec::new();
-        let cell_size = CellSize::new(15.0, 15.0);
-
+        let cell_size = CELL_SIZE;
 
         let sand = Sand::new(GridPosition::new(1, 1, cell_size));
         blocks.push(Box::new(sand));
-
 
         let occupied_positions =
             blocks.iter().map(|block| block.get_position()).collect();
@@ -111,7 +117,7 @@ impl MainState {
         mesh.draw(canvas, DrawParam::default());
     }
 
-    pub fn draw_fps(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
+    fn draw_fps(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
         let fps = ctx.time.fps().round();
         let bounds = Vec2::new(80.0, 20.0);
         let rect = Rect::new(0.0, 0.0, bounds.x, bounds.y);
@@ -148,24 +154,31 @@ impl MainState {
 }
 
 impl EventHandler for MainState {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+
+        while ctx.time.check_update_time(FPS) {
+            self.update_occupied_positions();
+
+            for block in self.blocks.iter_mut() {
+                block.apply_gravity(
+                    ctx,
+                    &self.occupied_positions,
+                    self.cell_size,
+                );
+                block.apply_motion(
+                    ctx,
+                    &self.occupied_positions,
+                    &self.occupied_positions,
+                    self.cell_size,
+                );
+            }
+        }
+
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
-
-        // self.occupied_positions = self
-        //     .blocks
-        //     .iter()
-        //     .map(|block| block.get_position())
-        //     .collect();
-
-        self.update_occupied_positions();
-
-        for block in self.blocks.iter_mut() {
-            block.apply_gravity(ctx, &self.occupied_positions, self.cell_size);
-        }
 
         self.draw_grid(ctx, &mut canvas);
         self.draw_fps(ctx, &mut canvas);
