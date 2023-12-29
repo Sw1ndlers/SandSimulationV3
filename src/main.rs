@@ -1,6 +1,8 @@
 #![allow(private_interfaces)]
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 use blocks::sand::Sand;
 use ggez::conf::WindowMode;
@@ -10,6 +12,7 @@ use ggez::graphics::{self, Canvas, Color, DrawParam, Drawable, Mesh, PxScale, Re
 use ggez::{Context, ContextBuilder, GameResult};
 
 mod components {
+    pub mod block_types;
     pub mod cell_size;
     pub mod directions;
     pub mod grid_position;
@@ -22,59 +25,64 @@ mod blocks {
 
 use blocks::block::Block;
 
+use components::block_types::BlockType;
 use components::cell_size::CellSize;
 use components::grid_position::GridPosition;
 
 const CELL_SIZE: CellSize = CellSize {
-    width: 15.0,
-    height: 15.0,
+    width: 8.0,
+    height: 8.0,
 };
 
-const FPS: u32 = 5;
+const FPS: u32 = 60;
 
 struct MainState {
-    blocks: Vec<Box<dyn Block>>,
-    occupied_positions: HashMap<GridPosition, Box<dyn Block>>,
+    blocks: HashMap<GridPosition, Box<dyn Block>>,
     cell_size: CellSize,
     grid_color: Color,
+    mouse_down: bool,
 }
 
 impl MainState {
     pub fn new(_ctx: &mut Context) -> MainState {
-        let mut blocks: Vec<Box<dyn Block>> = Vec::new();
-        let mut occupied_positions: HashMap<GridPosition, Box<dyn Block>> = HashMap::new();
-
+        let blocks: HashMap<GridPosition, Box<dyn Block>> = HashMap::new();
         let cell_size = CELL_SIZE;
-
-        // let sand = Sand::new(GridPosition::new(1, 1, cell_size));
-        // blocks.push(Box::new(sand));
-
-        // let occupied_positions =
-        //     blocks.iter().map(|block| block.get_position()).collect();
 
         MainState {
             blocks,
             cell_size,
-            occupied_positions,
             grid_color: Color::BLACK,
+            mouse_down: false,
         }
     }
 
-    /// Should be called ONLY once every draw loop or when a block is added or removed
-    fn update_occupied_positions(&mut self) {
-        self.occupied_positions = self
-            .blocks
-            .iter()
-            .map(|block| (block.get_position(), block.box_clone()))
-            .collect();
+    fn clone_blocks(&self) -> HashMap<GridPosition, Box<dyn Block>> {
+        let mut cloned_blocks: HashMap<GridPosition, Box<dyn Block>> = HashMap::new();
+
+        for (_position, block) in self.blocks.iter() {
+            cloned_blocks.insert(block.get_position(), block.box_clone());
+        }
+
+        cloned_blocks
+    }
+
+    fn update_positions(&mut self) {
+        let mut new_blocks: HashMap<GridPosition, Box<dyn Block>> = HashMap::new();
+
+        for (_position, block) in self.blocks.iter_mut() {
+            let position = block.get_position();
+            new_blocks.insert(position, block.box_clone());
+        }
+
+        self.blocks = new_blocks;
     }
 
     fn position_occupied(&self, position: GridPosition) -> bool {
-        self.occupied_positions.contains_key(&position)
+        self.blocks.contains_key(&position)
     }
 
     fn insert_block(&mut self, block: Box<dyn Block>) {
-        self.blocks.push(block);
+        self.blocks.insert(block.get_position(), block);
     }
 
     fn draw_grid(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
@@ -137,7 +145,7 @@ impl MainState {
     fn draw_pixels(&mut self, ctx: &mut Context, canvas: &mut Canvas) {
         let mut mesh_builder = graphics::MeshBuilder::new();
 
-        for block in self.blocks.iter_mut() {
+        for (_pos, block) in self.blocks.iter_mut() {
             block.append_to_mesh(&mut mesh_builder);
         }
 
@@ -146,22 +154,86 @@ impl MainState {
 
         pixel_mesh.draw(canvas, DrawParam::default());
     }
+
+    fn spawn_block(&mut self, block_type: BlockType, grid_position: GridPosition) -> GameResult {
+        if self.position_occupied(grid_position) {
+            return Ok(());
+        }
+
+        let block: Box<dyn Block>;
+
+        match block_type {
+            BlockType::Sand => {
+                block = Box::new(Sand::new(grid_position));
+            }
+            BlockType::Stone => todo!(),
+        }
+
+        self.insert_block(block);
+
+        Ok(())
+    }
+
+    /// Range is in number of cells
+    fn generate_positions(&self, start_position: GridPosition, range: i32) -> HashSet<GridPosition> {
+        let mut positions: HashSet<GridPosition> = HashSet::new();
+
+        for x in -range..range {
+            for y in -range..range {
+                let position = start_position + GridPosition::new(x, y, self.cell_size);
+
+                positions.insert(position);
+            }
+        }
+
+        positions
+    }
+
+    /// Range is in number of cells
+    fn generate_random_positions(&self, start_position: GridPosition, range: i32) -> HashSet<GridPosition> {
+        let mut positions: HashSet<GridPosition> = HashSet::new();
+        let num_positions = range / 2;
+
+        for _ in 0..num_positions {
+            let x = rand::random::<i32>() % range;
+            let y = rand::random::<i32>() % range;
+
+            let position = start_position + GridPosition::new(x, y, self.cell_size);
+
+            positions.insert(position);
+        }
+
+        positions
+    }
 }
 
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while ctx.time.check_update_time(FPS) {
-            for block in self.blocks.iter_mut() {
-                block.apply_gravity(ctx, &self.occupied_positions, self.cell_size);
-                block.apply_motion(
-                    ctx,
-                    &self.occupied_positions,
-                    &self.occupied_positions,
-                    self.cell_size,
-                );
+            let cloned_blocks = self.clone_blocks();
+
+            // Unmutable updates
+            for (_position, block) in self.blocks.iter_mut() {
+                block.apply_gravity(ctx, &cloned_blocks, self.cell_size);
+                block.apply_motion(ctx, &cloned_blocks, self.cell_size);
             }
 
-            self.update_occupied_positions();
+            // Mutable updates
+            for (_position, _block) in self.blocks.iter() {}
+
+            if self.mouse_down {
+                let mouse_position = ctx.mouse.position();
+                let grid_position = GridPosition::from_vec2(mouse_position, self.cell_size);
+                let positions = self.generate_positions(grid_position, 15);
+
+                // self.spawn_block(BlockType::Sand, grid_position)?;
+
+                for position in positions {
+                    self.spawn_block(BlockType::Sand, position)?;
+                }
+            }
+
+            self.update_positions();
         }
 
         Ok(())
@@ -170,13 +242,13 @@ impl EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
 
+        // Overlap checking ---------------------------------
+
         let mut position_count: HashMap<GridPosition, u64> = HashMap::new();
 
-        for block in self.blocks.iter_mut() {
+        for (_pos, block) in self.blocks.iter_mut() {
             let position = block.get_position();
             let count = position_count.get(&position).unwrap_or(&0) + 1;
-
-            // block.get_surrounding_blocks(self.blocks, cell_size);
 
             position_count.insert(position, count);
         }
@@ -186,6 +258,8 @@ impl EventHandler for MainState {
                 println!("Position: {:?} Count: {}", position, count);
             }
         }
+
+        // End overlap checking -----------------------------
 
         self.draw_grid(ctx, &mut canvas);
         self.draw_fps(ctx, &mut canvas);
@@ -198,19 +272,22 @@ impl EventHandler for MainState {
         &mut self,
         _ctx: &mut Context,
         _button: MouseButton,
-        x: f32,
-        y: f32,
+        _x: f32,
+        _y: f32,
     ) -> GameResult {
-        let position = GridPosition::from_vec2((x, y), self.cell_size);
+        self.mouse_down = true;
 
-        if self.position_occupied(position) {
-            return Ok(());
-        }
+        Ok(())
+    }
 
-        let sand = Sand::new(position);
-        self.insert_block(Box::new(sand));
-
-        self.update_occupied_positions();
+    fn mouse_button_up_event(
+        &mut self,
+        _ctx: &mut Context,
+        _button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) -> GameResult {
+        self.mouse_down = false;
 
         Ok(())
     }

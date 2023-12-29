@@ -1,11 +1,12 @@
 use super::{cell_size::CellSize, grid_position::GridPosition};
+use strum_macros::EnumIter; 
 
 /// [TopLeft]    | [Top]    | [TopRight]
 ///
 /// [Left]       | [Middle] | [Right]
 ///
 /// [BottomLeft] | [Bottom] | [BottomRight]
-#[derive(Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq, EnumIter)]
 pub enum Direction {
     TopLeft,
     Top,

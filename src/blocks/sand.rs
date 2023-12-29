@@ -1,13 +1,10 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use ggez::graphics::Color;
 
 use super::block::Block;
 use crate::components::{
-    cell_size::CellSize,
-    directions::Direction,
-    grid_position::GridPosition,
-    pixel::Pixel,
+    cell_size::CellSize, directions::Direction, grid_position::GridPosition, pixel::Pixel,
 };
 
 #[derive(Debug, Clone)]
@@ -47,18 +44,18 @@ impl Block for Sand {
     }
 
     fn apply_gravity(
-            &mut self,
-            ctx: &mut ggez::Context,
-            blocks: &HashMap<GridPosition, Box<dyn Block>>,
-            cell_size: CellSize,
-        ) {
+        &mut self,
+        ctx: &mut ggez::Context,
+        blocks: &HashMap<GridPosition, Box<dyn Block>>,
+        cell_size: CellSize,
+    ) {
         let next_position = self.should_apply_gravity(ctx, blocks, cell_size);
 
         match next_position {
             Some(position) => {
                 self.falling = true;
                 self.set_position(position);
-            },
+            }
             None => {
                 self.falling = false;
             }
@@ -71,27 +68,34 @@ impl Block for Sand {
         }
     }
 
-
     fn apply_motion(
         &mut self,
         ctx: &mut ggez::Context,
         blocks: &HashMap<GridPosition, Box<dyn Block>>,
-        occupied_positions: &HashMap<GridPosition, Box<dyn Block>>,
         cell_size: CellSize,
     ) {
         if self.falling {
             return;
         }
 
-        let open_directions = self.get_open_directions(blocks, cell_size);
-        let bottom_empty = open_directions.contains(&Direction::Bottom);
+        // let open_directions = self.get_open_directions(blocks, cell_size);
+        let directions = self.get_blocks_from_directions(blocks, cell_size, vec![
+            Direction::BottomLeft,
+            Direction::BottomRight,
+            Direction::Bottom,
+        ]);
 
-        if open_directions.is_empty() || bottom_empty {
+        let bottom_block = directions.get(&Direction::Bottom);
+
+        if directions.is_empty() || bottom_block.is_none() {
+            return;
+        }
+        if bottom_block.unwrap().is_falling() {
             return;
         }
 
-        let left_empty = open_directions.contains(&Direction::BottomLeft);
-        let right_empty = open_directions.contains(&Direction::BottomRight);
+        let left_empty = directions.contains_key(&Direction::BottomLeft) == false;
+        let right_empty = directions.contains_key(&Direction::BottomRight) == false;
 
         let next_position: GridPosition;
 
@@ -112,9 +116,7 @@ impl Block for Sand {
             return;
         }
 
-        if next_position.is_occupied(occupied_positions)
-            || next_position.is_offscreen(ctx)
-        {
+        if next_position.is_occupied(blocks) || next_position.is_offscreen(ctx) {
             return;
         }
 
