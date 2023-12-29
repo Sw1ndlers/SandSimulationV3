@@ -1,14 +1,16 @@
 #![allow(private_interfaces)]
 
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 
 use blocks::sand::Sand;
+use blocks::stone::Stone;
 use ggez::conf::WindowMode;
 use ggez::event::{self, EventHandler, MouseButton};
 use ggez::glam::*;
-use ggez::graphics::{self, Canvas, Color, DrawParam, Drawable, Mesh, PxScale, Rect, Text};
+use ggez::graphics::{
+    self, Canvas, Color, DrawMode, DrawParam, Drawable, Mesh, PxScale, Rect, Text,
+};
+use ggez::input::keyboard::KeyCode;
 use ggez::{Context, ContextBuilder, GameResult};
 
 mod components {
@@ -21,6 +23,7 @@ mod components {
 mod blocks {
     pub mod block;
     pub mod sand;
+    pub mod stone;
 }
 
 use blocks::block::Block;
@@ -38,9 +41,11 @@ const FPS: u32 = 60;
 
 struct MainState {
     blocks: HashMap<GridPosition, Box<dyn Block>>,
+    place_range: i32,
     cell_size: CellSize,
     grid_color: Color,
     mouse_down: bool,
+    selected_block: BlockType,
 }
 
 impl MainState {
@@ -53,6 +58,8 @@ impl MainState {
             cell_size,
             grid_color: Color::BLACK,
             mouse_down: false,
+            selected_block: BlockType::Sand,
+            place_range: 5,
         }
     }
 
@@ -166,7 +173,12 @@ impl MainState {
             BlockType::Sand => {
                 block = Box::new(Sand::new(grid_position));
             }
-            BlockType::Stone => todo!(),
+            BlockType::Stone => {
+                block = Box::new(Stone::new(grid_position));
+            }
+            BlockType::Eraser => {
+                return Ok(());
+            }
         }
 
         self.insert_block(block);
@@ -175,7 +187,11 @@ impl MainState {
     }
 
     /// Range is in number of cells
-    fn generate_positions(&self, start_position: GridPosition, range: i32) -> HashSet<GridPosition> {
+    fn generate_positions(
+        &self,
+        start_position: GridPosition,
+        range: i32,
+    ) -> HashSet<GridPosition> {
         let mut positions: HashSet<GridPosition> = HashSet::new();
 
         for x in -range..range {
@@ -190,7 +206,11 @@ impl MainState {
     }
 
     /// Range is in number of cells
-    fn generate_random_positions(&self, start_position: GridPosition, range: i32) -> HashSet<GridPosition> {
+    fn generate_random_positions(
+        &self,
+        start_position: GridPosition,
+        range: i32,
+    ) -> HashSet<GridPosition> {
         let mut positions: HashSet<GridPosition> = HashSet::new();
         let num_positions = range / 2;
 
@@ -204,6 +224,44 @@ impl MainState {
         }
 
         positions
+    }
+
+    fn draw_spawnbox(
+        &self,
+        ctx: &mut Context,
+        canvas: &mut Canvas,
+        position: GridPosition,
+        radius: f32,
+    ) {
+        let vec2 = position.as_vec2();
+
+        let width = self.cell_size.width * (radius * 2.0);
+        let height = self.cell_size.height * (radius * 2.0);
+
+        let rect = Rect::new(
+            vec2.x - (width / 2.0),
+            vec2.y - (height / 2.0),
+            width,
+            height,
+        );
+
+        let inner_rectangle = Mesh::new_rectangle(
+            &ctx.gfx,
+            DrawMode::fill(),
+            rect,
+            Color::from_rgba(255, 255, 255, 13),
+        )
+        .unwrap();
+
+        let outline = Mesh::new_rectangle(
+            &ctx.gfx,
+            DrawMode::stroke(2.0),
+            rect,
+            Color::WHITE,
+        ).unwrap();
+
+        inner_rectangle.draw(canvas, DrawParam::default());
+        outline.draw(canvas, DrawParam::default());
     }
 }
 
@@ -221,15 +279,23 @@ impl EventHandler for MainState {
             // Mutable updates
             for (_position, _block) in self.blocks.iter() {}
 
-            if self.mouse_down {
-                let mouse_position = ctx.mouse.position();
-                let grid_position = GridPosition::from_vec2(mouse_position, self.cell_size);
-                let positions = self.generate_positions(grid_position, 15);
+            let mouse_position = ctx.mouse.position();
 
-                // self.spawn_block(BlockType::Sand, grid_position)?;
+            if self.mouse_down && self.selected_block != BlockType::Eraser {
+                let grid_position = GridPosition::from_vec2(mouse_position, self.cell_size);
+                let positions = self.generate_positions(grid_position, self.place_range);
 
                 for position in positions {
-                    self.spawn_block(BlockType::Sand, position)?;
+                    self.spawn_block(self.selected_block.clone(), position)?;
+                }
+            }
+
+            if self.mouse_down && self.selected_block == BlockType::Eraser {
+                let grid_position = GridPosition::from_vec2(mouse_position, self.cell_size);
+                let positions = self.generate_positions(grid_position, self.place_range);
+
+                for position in positions {
+                    self.blocks.remove(&position);
                 }
             }
 
@@ -240,7 +306,7 @@ impl EventHandler for MainState {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let mut canvas = Canvas::from_frame(ctx, Color::WHITE);
+        let mut canvas = Canvas::from_frame(ctx, Color::BLACK);
 
         // Overlap checking ---------------------------------
 
@@ -265,7 +331,32 @@ impl EventHandler for MainState {
         self.draw_fps(ctx, &mut canvas);
         self.draw_pixels(ctx, &mut canvas);
 
+        self.draw_spawnbox(
+            ctx,
+            &mut canvas,
+            GridPosition::from_vec2(ctx.mouse.position(), self.cell_size),
+            self.place_range as f32,
+        );
+
         canvas.finish(ctx)
+    }
+
+    fn key_down_event(
+        &mut self,
+        ctx: &mut Context,
+        input: ggez::input::keyboard::KeyInput,
+        _repeated: bool,
+    ) -> GameResult {
+        if let Some(key_code) = input.keycode {
+            match key_code {
+                KeyCode::Key1 => self.selected_block = BlockType::Sand,
+                KeyCode::Key2 => self.selected_block = BlockType::Stone,
+                KeyCode::Key3 => self.selected_block = BlockType::Eraser,
+                _ => self.selected_block = BlockType::Sand,
+            }
+        }
+
+        Ok(())
     }
 
     fn mouse_button_down_event(
@@ -291,6 +382,22 @@ impl EventHandler for MainState {
 
         Ok(())
     }
+
+    fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) -> GameResult {
+        // println!("Mousewheel event, x: {x}, y: {y}");
+        if y > 0.0 {
+            self.place_range += 1;
+        } else {
+            self.place_range -= 1;
+        }
+
+        if self.place_range < 1 {
+            self.place_range = 1;
+        }
+
+        Ok(())
+    }
+
 }
 
 fn main() {

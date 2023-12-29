@@ -34,6 +34,7 @@ impl GridPosition {
         Self { cell_size, x, y }
     }
 
+    /// Finds the closest grid position to the given point.
     pub fn from_vec2<T>(point: T, cell_size: CellSize) -> Self
     where
         T: Into<Vec2>,

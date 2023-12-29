@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use ggez::graphics::Color;
+use rand::seq::SliceRandom;
 
 use super::block::Block;
 use crate::components::{
@@ -15,8 +16,14 @@ pub struct Sand {
 
 impl Block for Sand {
     fn new(position: GridPosition) -> Self {
-        let color = Color::BLACK;
+        let sand_colors = vec![
+            Color::from_rgb(222, 178, 111),
+            Color::from_rgb(229, 183, 114),
+            Color::from_rgb(216, 172, 108),
+        ];
 
+        let color = *sand_colors.choose(&mut rand::thread_rng()).unwrap();
+        
         Self {
             pixel: Pixel::new(position, color),
             falling: true,
@@ -59,12 +66,6 @@ impl Block for Sand {
             None => {
                 self.falling = false;
             }
-        }
-
-        if self.falling {
-            self.pixel.color = Color::RED;
-        } else {
-            self.pixel.color = Color::BLACK;
         }
     }
 
