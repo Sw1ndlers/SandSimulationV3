@@ -1,8 +1,6 @@
 # Sand Simulation v3
 
-A remake of my earlier project
-(https://github.com/Sw1ndlers/SandSimulation)  
-<br>
+A remake of my earlier project (https://github.com/Sw1ndlers/SandSimulation)  
 
 This remake includes
 1. Much better system for handling blocks (all within the `Block` trait)
