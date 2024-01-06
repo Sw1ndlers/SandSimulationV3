@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ggez::graphics::Color;
 use rand::seq::SliceRandom;
@@ -23,7 +23,7 @@ impl Block for Sand {
         ];
 
         let color = *sand_colors.choose(&mut rand::thread_rng()).unwrap();
-        
+
         Self {
             pixel: Pixel::new(position, color),
             falling: true,
@@ -80,11 +80,15 @@ impl Block for Sand {
         }
 
         // let open_directions = self.get_open_directions(blocks, cell_size);
-        let directions = self.get_blocks_from_directions(blocks, cell_size, vec![
-            Direction::BottomLeft,
-            Direction::BottomRight,
-            Direction::Bottom,
-        ]);
+        let directions = self.get_blocks_from_directions(
+            blocks,
+            cell_size,
+            vec![
+                Direction::BottomLeft,
+                Direction::BottomRight,
+                Direction::Bottom,
+            ],
+        );
 
         let bottom_block = directions.get(&Direction::Bottom);
 

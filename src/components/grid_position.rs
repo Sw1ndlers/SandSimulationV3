@@ -1,15 +1,11 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     hash::{Hash, Hasher},
     ops::{Add, AddAssign, Mul},
 };
 
-use euclid::num::Round;
-use ggez::conf::WindowMode;
-use ggez::event::{self, EventHandler, MouseButton};
 use ggez::glam::*;
-use ggez::graphics::{self, Canvas, Color};
-use ggez::{Context, ContextBuilder, GameResult};
+use ggez::graphics;
 
 use crate::blocks::block::Block;
 
@@ -60,10 +56,7 @@ impl GridPosition {
         )
     }
 
-    pub fn is_occupied(
-        &self,
-        blocks: &HashMap<GridPosition, Box<dyn Block>>,
-    ) -> bool {
+    pub fn is_occupied(&self, blocks: &HashMap<GridPosition, Box<dyn Block>>) -> bool {
         blocks.contains_key(self)
     }
 
@@ -77,18 +70,13 @@ impl GridPosition {
 
         let position = self.as_vec2();
 
-        return position.x < left
-            || position.x > right
-            || position.y < top
-            || position.y > bottom;
+        return position.x < left || position.x > right || position.y < top || position.y > bottom;
     }
 }
 
 impl PartialEq for GridPosition {
     fn eq(&self, other: &Self) -> bool {
-        self.cell_size == other.cell_size
-            && self.x == other.x
-            && self.y == other.y
+        self.cell_size == other.cell_size && self.x == other.x && self.y == other.y
     }
 }
 

@@ -1,5 +1,5 @@
 use super::{cell_size::CellSize, grid_position::GridPosition};
-use strum_macros::EnumIter; 
+use strum_macros::EnumIter;
 
 /// [TopLeft]    | [Top]    | [TopRight]
 ///

@@ -206,7 +206,7 @@ impl MainState {
     }
 
     /// Range is in number of cells
-    fn generate_random_positions(
+    fn _generate_random_positions(
         &self,
         start_position: GridPosition,
         range: i32,
@@ -253,12 +253,8 @@ impl MainState {
         )
         .unwrap();
 
-        let outline = Mesh::new_rectangle(
-            &ctx.gfx,
-            DrawMode::stroke(2.0),
-            rect,
-            Color::WHITE,
-        ).unwrap();
+        let outline =
+            Mesh::new_rectangle(&ctx.gfx, DrawMode::stroke(2.0), rect, Color::WHITE).unwrap();
 
         inner_rectangle.draw(canvas, DrawParam::default());
         outline.draw(canvas, DrawParam::default());
@@ -343,7 +339,7 @@ impl EventHandler for MainState {
 
     fn key_down_event(
         &mut self,
-        ctx: &mut Context,
+        _ctx: &mut Context,
         input: ggez::input::keyboard::KeyInput,
         _repeated: bool,
     ) -> GameResult {
@@ -397,7 +393,6 @@ impl EventHandler for MainState {
 
         Ok(())
     }
-
 }
 
 fn main() {

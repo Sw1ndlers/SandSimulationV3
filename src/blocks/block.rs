@@ -1,8 +1,5 @@
 use crate::components::{
-    cell_size::{self, CellSize},
-    directions::Direction,
-    grid_position::GridPosition,
-    pixel::Pixel,
+    cell_size::CellSize, directions::Direction, grid_position::GridPosition, pixel::Pixel,
 };
 
 use ggez::graphics;
@@ -19,9 +16,12 @@ pub trait Block {
     fn box_clone(&self) -> Box<dyn Block>;
     fn is_falling(&self) -> bool;
 
-    fn append_to_mesh(&self, mesh_builder: &mut graphics::MeshBuilder) {
-        self.get_pixel().append_to_mesh(mesh_builder);
-    }
+    fn apply_motion(
+        &mut self,
+        ctx: &mut ggez::Context,
+        blocks: &HashMap<GridPosition, Box<dyn Block>>,
+        cell_size: CellSize,
+    );
 
     fn apply_gravity(
         &mut self,
@@ -29,6 +29,10 @@ pub trait Block {
         blocks: &HashMap<GridPosition, Box<dyn Block>>,
         cell_size: CellSize,
     );
+
+    fn append_to_mesh(&self, mesh_builder: &mut graphics::MeshBuilder) {
+        self.get_pixel().append_to_mesh(mesh_builder);
+    }
 
     fn should_apply_gravity(
         &self,
@@ -48,13 +52,6 @@ pub trait Block {
 
         Some(next_position)
     }
-
-    fn apply_motion(
-        &mut self,
-        ctx: &mut ggez::Context,
-        blocks: &HashMap<GridPosition, Box<dyn Block>>,
-        cell_size: CellSize,
-    );
 
     fn get_open_directions(
         &self,
@@ -129,32 +126,6 @@ pub trait Block {
 
         direction_blocks
     }
-
-    // fn get_surrounding_blocks<'a>(
-    //     &self,
-    //     blocks: &'a mut HashMap<GridPosition, Box<dyn Block>>,
-    //     cell_size: CellSize,
-    // ) -> Vec<&Option<&'a mut Box<dyn Block>>> {
-    //     let position = self.get_position();
-    //     let mut surrounding_blocks = Vec::new();
-
-    //     let top_left = position + Direction::TopLeft.get_offset(cell_size);
-    //     let top = position + Direction::Top.get_offset(cell_size);
-    //     let top_right = position + Direction::TopRight.get_offset(cell_size);
-    //     let left = position + Direction::Left.get_offset(cell_size);
-    //     let right = position + Direction::Right.get_offset(cell_size);
-    //     let bottom_left = position + Direction::BottomLeft.get_offset(cell_size);
-    //     let bottom = position + Direction::Bottom.get_offset(cell_size);
-    //     let bottom_right = position + Direction::BottomRight.get_offset(cell_size);
-
-    //     let positions = vec![top_left, top, top_right, left, right, bottom_left, bottom, bottom_right];
-
-    //     for position in positions {
-    //         surrounding_blocks.push(&blocks.get_mut(&position));
-    //     }
-
-    //     surrounding_blocks
-    // }
 
     fn offset_bottom_left(&mut self, cell_size: CellSize) -> GridPosition {
         self.get_position() + Direction::BottomLeft.get_offset(cell_size)

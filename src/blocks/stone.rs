@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ggez::graphics::Color;
-use rand::seq::SliceRandom;
 
 use super::block::Block;
 use crate::components::{cell_size::CellSize, grid_position::GridPosition, pixel::Pixel};
